@@ -72,13 +72,16 @@ public class TraineeService {
 
     @Transactional
     public void changePassword(String username, String oldPassword, String newPassword) {
+        log.info("Processing password change for trainee: {}", username);
         auth.validate(username, oldPassword);
         Trainee trainee = traineeRepository.findByUsername(username).orElseThrow();
         trainee.setPassword(newPassword);
+        log.info("Successfully changed password for trainee: {}", username);
     }
 
     @Transactional
     public void toggleStatus(String username, String password, boolean isActive) {
+        log.info("Toggling active status for trainee: {} to {}", username, isActive);
         auth.validate(username, password);
 
         Trainee trainee = traineeRepository.findByUsername(username)
@@ -86,18 +89,22 @@ public class TraineeService {
         trainee.setIsActive(isActive);
 
         traineeRepository.save(trainee);
+        log.info("Successfully updated status for trainee: {}", username);
     }
 
     @Transactional
     public void deleteTrainee(String username, String password) {
+        log.info("Attempting to delete trainee profile: {}", username);
         auth.validate(username, password);
         Trainee trainee = traineeRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Trainee not found"));
         traineeRepository.delete(trainee);
+        log.info("Successfully deleted trainee profile: {}", username);
     }
 
     @Transactional
     public List<Trainer> getUnassigned(String username, String password) {
+        log.info("Fetching unassigned trainers for trainee: {}", username);
         auth.validate(username, password);
 
         return trainerRepository.findTrainersNotAssignedToTrainee(username);
