@@ -5,6 +5,7 @@ import epam.arsen.burko.gym.entity.Trainer;
 import epam.arsen.burko.gym.repository.TraineeRepository;
 import epam.arsen.burko.gym.repository.TrainerRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Set;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class TraineeService {
     private final TraineeRepository traineeRepository;
@@ -23,6 +25,8 @@ public class TraineeService {
 
     @Transactional
     public Trainee createTrainee(String firstName, String lastName, Date dateOfBirth, String address) {
+        log.info("Creating new trainee profile for: {} {}", firstName, lastName);
+
         Trainee trainee = new Trainee();
         trainee.setFirstName(firstName);
         trainee.setLastName(lastName);
@@ -32,23 +36,28 @@ public class TraineeService {
         trainee.setDateOfBirth(dateOfBirth);
         trainee.setAddress(address);
 
+        log.info("Successfully created trainee with username: {}", trainee.getUsername());
         return traineeRepository.save(trainee);
     }
 
     @Transactional
     public void updateTrainers(String username, String password, Set<Long> trainerIds) {
+        log.info("Updating trainer list for trainee: {}", username);
         auth.validate(username, password);
         Trainee trainee = traineeRepository.findByUsername(username).orElseThrow();
         trainee.setTrainers(new HashSet<>(trainerRepository.findAllById(trainerIds)));
+        log.info("Successfully updated trainer list for trainee: {}", username);
     }
 
     public Trainee get(String username, String password) {
+        log.info("Fetching profile for trainee: {}", username);
         auth.validate(username, password);
         return traineeRepository.findByUsername(username).orElseThrow();
     }
 
     @Transactional
     public Trainee updateProfile(String username, String password, Trainee updated) {
+        log.info("Updating profile for trainee: {}", username);
         auth.validate(username, password);
 
         Trainee trainee = traineeRepository.findByUsername(username).orElseThrow();
@@ -57,7 +66,7 @@ public class TraineeService {
         trainee.setLastName(updated.getLastName());
         trainee.setDateOfBirth(updated.getDateOfBirth());
         trainee.setAddress(updated.getAddress());
-
+        log.info("Successfully updated profile for trainee: {}", username);
         return trainee;
     }
 
