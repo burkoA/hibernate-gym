@@ -1,4 +1,6 @@
 import epam.arsen.burko.gym.entity.User;
+import epam.arsen.burko.gym.exception.InvalidPasswordException;
+import epam.arsen.burko.gym.exception.UserNotFoundException;
 import epam.arsen.burko.gym.repository.UserRepository;
 import epam.arsen.burko.gym.service.AuthService;
 import org.junit.jupiter.api.Test;
@@ -37,7 +39,7 @@ class AuthServiceTest {
     void validate_UserNotFound_ThrowsException() {
         when(userRepository.findByUsername("Unknown.User")).thenReturn(Optional.empty());
 
-        RuntimeException exception = assertThrows(RuntimeException.class,
+        UserNotFoundException exception = assertThrows(UserNotFoundException.class,
                 () -> authService.validate("Unknown.User", "anyPassword"));
         assertEquals("User not found", exception.getMessage());
     }
@@ -50,7 +52,7 @@ class AuthServiceTest {
 
         when(userRepository.findByUsername("John.Doe")).thenReturn(Optional.of(user));
 
-        RuntimeException exception = assertThrows(RuntimeException.class,
+        InvalidPasswordException exception = assertThrows(InvalidPasswordException.class,
                 () -> authService.validate("John.Doe", "wrongPassword"));
         assertEquals("Invalid password", exception.getMessage());
     }

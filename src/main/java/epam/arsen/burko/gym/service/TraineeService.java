@@ -1,7 +1,11 @@
 package epam.arsen.burko.gym.service;
 
+import epam.arsen.burko.gym.dto.TraineeDto;
+import epam.arsen.burko.gym.dto.TraineeUpdateDto;
+import epam.arsen.burko.gym.dto.TrainerDto;
 import epam.arsen.burko.gym.entity.Trainee;
 import epam.arsen.burko.gym.entity.Trainer;
+import epam.arsen.burko.gym.exception.TraineeNotFoundException;
 import epam.arsen.burko.gym.repository.TraineeRepository;
 import epam.arsen.burko.gym.repository.TrainerRepository;
 import lombok.RequiredArgsConstructor;
@@ -9,10 +13,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Date;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import static epam.arsen.burko.gym.dto.GymDtoMapper.toDto;
 
 @Service
 @Slf4j
@@ -24,7 +30,7 @@ public class TraineeService {
     private final AuthService auth;
 
     @Transactional
-    public Trainee createTrainee(String firstName, String lastName, Date dateOfBirth, String address) {
+    public TraineeDto createTrainee(String firstName, String lastName, LocalDate dateOfBirth, String address) {
         log.info("Creating new trainee profile for: {} {}", firstName, lastName);
 
         Trainee trainee = new Trainee();
@@ -37,44 +43,48 @@ public class TraineeService {
         trainee.setAddress(address);
 
         log.info("Successfully created trainee with username: {}", trainee.getUsername());
-        return traineeRepository.save(trainee);
+        return toDto(traineeRepository.save(trainee));
     }
 
     @Transactional
     public void updateTrainers(String username, String password, Set<Long> trainerIds) {
         log.info("Updating trainer list for trainee: {}", username);
         auth.validate(username, password);
-        Trainee trainee = traineeRepository.findByUsername(username).orElseThrow();
+        Trainee trainee = traineeRepository.findByUsername(username)
+                .orElseThrow(() -> new TraineeNotFoundException("Trainee not found"));
         trainee.setTrainers(new HashSet<>(trainerRepository.findAllById(trainerIds)));
         log.info("Successfully updated trainer list for trainee: {}", username);
     }
 
-    public Trainee get(String username, String password) {
+    public TraineeDto get(String username, String password) {
         log.info("Fetching profile for trainee: {}", username);
         auth.validate(username, password);
-        return traineeRepository.findByUsername(username).orElseThrow();
+        return toDto(traineeRepository.findByUsername(username)
+                .orElseThrow(() -> new TraineeNotFoundException("Trainee not found")));
     }
 
     @Transactional
-    public Trainee updateProfile(String username, String password, Trainee updated) {
+    public TraineeDto updateProfile(String username, String password, TraineeUpdateDto updated) {
         log.info("Updating profile for trainee: {}", username);
         auth.validate(username, password);
 
-        Trainee trainee = traineeRepository.findByUsername(username).orElseThrow();
+        Trainee trainee = traineeRepository.findByUsername(username)
+                .orElseThrow(() -> new TraineeNotFoundException("Trainee not found"));
 
-        trainee.setFirstName(updated.getFirstName());
-        trainee.setLastName(updated.getLastName());
-        trainee.setDateOfBirth(updated.getDateOfBirth());
-        trainee.setAddress(updated.getAddress());
+        trainee.setFirstName(updated.firstName());
+        trainee.setLastName(updated.lastName());
+        trainee.setDateOfBirth(updated.dateOfBirth());
+        trainee.setAddress(updated.address());
         log.info("Successfully updated profile for trainee: {}", username);
-        return trainee;
+        return toDto(trainee);
     }
 
     @Transactional
     public void changePassword(String username, String oldPassword, String newPassword) {
         log.info("Processing password change for trainee: {}", username);
         auth.validate(username, oldPassword);
-        Trainee trainee = traineeRepository.findByUsername(username).orElseThrow();
+        Trainee trainee = traineeRepository.findByUsername(username)
+                .orElseThrow(() -> new TraineeNotFoundException("Trainee not found"));
         trainee.setPassword(newPassword);
         log.info("Successfully changed password for trainee: {}", username);
     }
@@ -85,7 +95,7 @@ public class TraineeService {
         auth.validate(username, password);
 
         Trainee trainee = traineeRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Trainee not found"));
+                .orElseThrow(() -> new TraineeNotFoundException("Trainee not found"));
         trainee.setIsActive(isActive);
 
         traineeRepository.save(trainee);
@@ -97,16 +107,18 @@ public class TraineeService {
         log.info("Attempting to delete trainee profile: {}", username);
         auth.validate(username, password);
         Trainee trainee = traineeRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Trainee not found"));
+                .orElseThrow(() -> new TraineeNotFoundException("Trainee not found"));
         traineeRepository.delete(trainee);
         log.info("Successfully deleted trainee profile: {}", username);
     }
 
     @Transactional
-    public List<Trainer> getUnassigned(String username, String password) {
+    public List<TrainerDto> getUnassigned(String username, String password) {
         log.info("Fetching unassigned trainers for trainee: {}", username);
         auth.validate(username, password);
 
-        return trainerRepository.findTrainersNotAssignedToTrainee(username);
+        return trainerRepository.findTrainersNotAssignedToTrainee(username).stream()
+                .map(trainer -> toDto(trainer))
+                .toList();
     }
 }

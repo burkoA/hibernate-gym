@@ -1,6 +1,10 @@
 package epam.arsen.burko.gym.service;
 
+import epam.arsen.burko.gym.dto.TrainingDto;
 import epam.arsen.burko.gym.entity.Training;
+import epam.arsen.burko.gym.exception.TraineeNotFoundException;
+import epam.arsen.burko.gym.exception.TrainerNotFoundException;
+import epam.arsen.burko.gym.exception.TrainingTypeNotFoundException;
 import epam.arsen.burko.gym.repository.TraineeRepository;
 import epam.arsen.burko.gym.repository.TrainerRepository;
 import epam.arsen.burko.gym.repository.TrainingRepository;
@@ -10,8 +14,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Date;
+import java.time.LocalDate;
 import java.util.List;
+
+import static epam.arsen.burko.gym.dto.GymDtoMapper.toDto;
 
 @Service
 @Slf4j
@@ -24,36 +30,45 @@ public class TrainingService {
     private final AuthService auth;
 
     @Transactional
-    public Training add(String authUsername, String authPassword, String traineeUsername,
-                        String trainerUsername, String name, Long typeId, Date date, Integer duration) {
+    public TrainingDto add(String authUsername, String authPassword, String traineeUsername,
+                           String trainerUsername, String name, Long typeId, LocalDate date, int duration) {
         log.info("Attempting to add new training '{}' for trainee: {} with trainer: {}", name, traineeUsername, trainerUsername);
 
         auth.validate(authUsername, authPassword);
 
         Training training = new Training();
-        training.setTrainee(traineeRepository.findByUsername(traineeUsername).orElseThrow());
-        training.setTrainer(trainerRepository.findByUsername(trainerUsername).orElseThrow());
+        training.setTrainee(traineeRepository.findByUsername(traineeUsername)
+                .orElseThrow(() -> new TraineeNotFoundException("Trainee not found")));
+        training.setTrainer(trainerRepository.findByUsername(trainerUsername)
+                .orElseThrow(() -> new TrainerNotFoundException("Trainer not found")));
         training.setTrainingName(name);
-        training.setTrainingType(trainingTypeRepository.findById(typeId).orElseThrow());
+        training.setTrainingType(trainingTypeRepository.findById(typeId)
+                .orElseThrow(() -> new TrainingTypeNotFoundException("Training type not found")));
         training.setTrainingDate(date);
         training.setTrainingDuration(duration);
 
         log.info("Successfully added training with ID: {}", training.getId());
 
-        return trainingRepository.save(training);
+        return toDto(trainingRepository.save(training));
     }
 
-    public List<Training> getTraineeTrainings(String username, String password, Date fromDate,
-                                              Date toDate, String trainerName, String trainingType) {
+    public List<TrainingDto> getTraineeTrainings(String username, String password, LocalDate fromDate,
+                                                 LocalDate toDate, String trainerName, String trainingType) {
         log.info("Fetching trainings for trainee: {} with applied filters", username);
         auth.validate(username, password);
-        return trainingRepository.findTraineeTrainingsByCriteria(username, fromDate, toDate, trainerName, trainingType);
+        return trainingRepository.findTraineeTrainingsByCriteria(username, fromDate, toDate, trainerName, trainingType)
+                .stream()
+                .map(training -> toDto(training))
+                .toList();
     }
 
-    public List<Training> getTrainerTrainings(String username, String password, Date fromDate,
-                                              Date toDate, String traineeName) {
+    public List<TrainingDto> getTrainerTrainings(String username, String password, LocalDate fromDate,
+                                                 LocalDate toDate, String traineeName) {
         log.info("Fetching trainings for trainer: {} with applied filters", username);
         auth.validate(username, password);
-        return trainingRepository.findTrainerTrainingsByCriteria(username, fromDate, toDate, traineeName);
+        return trainingRepository.findTrainerTrainingsByCriteria(username, fromDate, toDate, traineeName)
+                .stream()
+                .map(training -> toDto(training))
+                .toList();
     }
 }

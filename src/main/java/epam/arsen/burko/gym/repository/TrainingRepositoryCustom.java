@@ -1,14 +1,11 @@
 package epam.arsen.burko.gym.repository;
 
 import epam.arsen.burko.gym.entity.Training;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
 
-@Repository
-public interface TrainingRepository extends JpaRepository<Training, Long>, TrainingRepositoryCustom {
+public interface TrainingRepositoryCustom {
     List<Training> findTraineeTrainingsByCriteria(
             String username,
             LocalDate fromDate,
@@ -24,3 +21,4 @@ public interface TrainingRepository extends JpaRepository<Training, Long>, Train
             String traineeName
     );
 }
+

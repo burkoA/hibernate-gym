@@ -1,3 +1,4 @@
+import epam.arsen.burko.gym.dto.TraineeDto;
 import epam.arsen.burko.gym.entity.Trainee;
 import epam.arsen.burko.gym.repository.TraineeRepository;
 import epam.arsen.burko.gym.repository.TrainerRepository;
@@ -10,7 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Date;
+import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,13 +39,13 @@ class TraineeServiceTest {
         when(identityService.generatePassword()).thenReturn("randomPass");
         when(traineeRepository.save(any(Trainee.class))).thenAnswer(i -> i.getArguments()[0]);
 
-        Trainee result = traineeService.createTrainee("Jane", "Smith", new Date(), "123 Main St");
+        TraineeDto result = traineeService.createTrainee("Jane", "Smith", LocalDate.now(), "123 Main St");
 
-        assertEquals("Jane", result.getFirstName());
-        assertEquals("Jane.Smith", result.getUsername());
-        assertEquals("randomPass", result.getPassword());
-        assertTrue(result.getIsActive());
-        assertEquals("123 Main St", result.getAddress());
+        assertEquals("Jane", result.firstName());
+        assertEquals("Jane.Smith", result.username());
+        assertEquals("randomPass", result.password());
+        assertTrue(result.isActive());
+        assertEquals("123 Main St", result.address());
         verify(traineeRepository, times(1)).save(any(Trainee.class));
     }
 
@@ -55,10 +56,10 @@ class TraineeServiceTest {
 
         when(traineeRepository.findByUsername("Jane.Smith")).thenReturn(Optional.of(expectedTrainee));
 
-        Trainee result = traineeService.get("Jane.Smith", "password123");
+        TraineeDto result = traineeService.get("Jane.Smith", "password123");
 
         assertNotNull(result);
-        assertEquals("Jane.Smith", result.getUsername());
+        assertEquals("Jane.Smith", result.username());
         verify(authService, times(1)).validate("Jane.Smith", "password123");
     }
 

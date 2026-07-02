@@ -5,7 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.Date;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -17,8 +17,7 @@ import java.util.Set;
 @Setter
 @NoArgsConstructor
 public class Trainee extends User{
-    @Temporal(TemporalType.DATE)
-    private Date dateOfBirth;
+    private LocalDate dateOfBirth;
     private String address;
 
     @OneToMany(mappedBy = "trainee", cascade = CascadeType.REMOVE)

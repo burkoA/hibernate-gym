@@ -1,13 +1,19 @@
 package epam.arsen.burko.gym.service;
 
+import epam.arsen.burko.gym.dto.TrainerDto;
+import epam.arsen.burko.gym.dto.TrainerUpdateDto;
 import epam.arsen.burko.gym.entity.Trainer;
 import epam.arsen.burko.gym.entity.TrainingType;
+import epam.arsen.burko.gym.exception.SpecializationNotFoundException;
+import epam.arsen.burko.gym.exception.TrainerNotFoundException;
 import epam.arsen.burko.gym.repository.TrainerRepository;
 import epam.arsen.burko.gym.repository.TrainingTypeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import static epam.arsen.burko.gym.dto.GymDtoMapper.toDto;
 
 @Service
 @Slf4j
@@ -20,11 +26,11 @@ public class TrainerService {
 
 
     @Transactional
-    public Trainer createTrainer(String firstName, String lastName, Long specializationId) {
+    public TrainerDto createTrainer(String firstName, String lastName, Long specializationId) {
         log.info("Creating new trainer profile for: {} {}", firstName, lastName);
 
         TrainingType specialization = trainingTypeRepository.findById(specializationId)
-                .orElseThrow(() -> new RuntimeException("Specialization not found"));
+                .orElseThrow(() -> new SpecializationNotFoundException("Specialization not found"));
 
         Trainer trainer = new Trainer();
         trainer.setFirstName(firstName);
@@ -36,20 +42,22 @@ public class TrainerService {
 
         log.info("Successfully created trainer with username: {}", trainer.getUsername());
 
-        return trainerRepository.save(trainer);
+        return toDto(trainerRepository.save(trainer));
     }
 
-    public Trainer get(String username, String password) {
+    public TrainerDto get(String username, String password) {
         log.info("Fetching profile for trainer: {}", username);
         auth.validate(username, password);
-        return trainerRepository.findByUsername(username).orElseThrow();
+        return toDto(trainerRepository.findByUsername(username)
+                .orElseThrow(() -> new TrainerNotFoundException("Trainer not found")));
     }
 
     @Transactional
     public void changePassword(String username, String oldPassword, String newPassword) {
         log.info("Processing password change for trainer: {}", username);
         auth.validate(username, oldPassword);
-        Trainer trainer = trainerRepository.findByUsername(username).orElseThrow();
+        Trainer trainer = trainerRepository.findByUsername(username)
+                .orElseThrow(() -> new TrainerNotFoundException("Trainer not found"));
         trainer.setPassword(newPassword);
         log.info("Successfully changed password for trainer: {}", username);
     }
@@ -60,7 +68,7 @@ public class TrainerService {
         auth.validate(username, password);
 
         Trainer trainer = trainerRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Trainer not found"));
+                .orElseThrow(() -> new TrainerNotFoundException("Trainer not found"));
         trainer.setIsActive(isActive);
 
         trainerRepository.save(trainer);
@@ -68,17 +76,23 @@ public class TrainerService {
     }
 
     @Transactional
-    public Trainer updateProfile(String username, String password, Trainer updated) {
+    public TrainerDto updateProfile(String username, String password, TrainerUpdateDto updated) {
         log.info("Updating profile for trainer: {}", username);
         auth.validate(username, password);
 
-        Trainer trainer = trainerRepository.findByUsername(username).orElseThrow();
+        Trainer trainer = trainerRepository.findByUsername(username)
+                .orElseThrow(() -> new TrainerNotFoundException("Trainer not found"));
 
-        trainer.setFirstName(updated.getFirstName());
-        trainer.setLastName(updated.getLastName());
-        trainer.setSpecialization(updated.getSpecialization());
+        trainer.setFirstName(updated.firstName());
+        trainer.setLastName(updated.lastName());
+
+        if (updated.specializationId() != null) {
+            TrainingType specialization = trainingTypeRepository.findById(updated.specializationId())
+                    .orElseThrow(() -> new SpecializationNotFoundException("Specialization not found"));
+            trainer.setSpecialization(specialization);
+        }
 
         log.info("Successfully updated profile for trainer: {}", username);
-        return trainer;
+        return toDto(trainer);
     }
 }
