@@ -4,6 +4,8 @@ import epam.arsen.burko.gym.entity.Trainee;
 import epam.arsen.burko.gym.entity.Trainer;
 import epam.arsen.burko.gym.entity.Training;
 
+import java.util.List;
+
 public final class GymDtoMapper {
 
     private GymDtoMapper() {
@@ -19,6 +21,68 @@ public final class GymDtoMapper {
                 trainee.getIsActive(),
                 trainee.getDateOfBirth(),
                 trainee.getAddress()
+        );
+    }
+
+    public static TraineeProfileResponse toProfileResponse(Trainee trainee) {
+        List<TrainerSummaryDto> trainerSummaries = trainee.getTrainers().stream()
+                .map(trainer -> new TrainerSummaryDto(
+                        trainer.getUsername(),
+                        trainer.getFirstName(),
+                        trainer.getLastName(),
+                        trainer.getSpecialization() != null ? trainer.getSpecialization().getId() : null,
+                        trainer.getSpecialization() != null ? trainer.getSpecialization().getTrainingTypeName() : null
+                ))
+                .toList();
+
+        return new TraineeProfileResponse(
+                trainee.getFirstName(),
+                trainee.getLastName(),
+                trainee.getDateOfBirth(),
+                trainee.getAddress(),
+                trainee.getIsActive(),
+                trainerSummaries
+        );
+    }
+
+    public static TraineeUpdateResponse toUpdateResponse(Trainee trainee) {
+        List<TrainerSummaryDto> trainerSummaries = trainee.getTrainers().stream()
+                .map(trainer -> new TrainerSummaryDto(
+                        trainer.getUsername(),
+                        trainer.getFirstName(),
+                        trainer.getLastName(),
+                        trainer.getSpecialization() != null ? trainer.getSpecialization().getId() : null,
+                        trainer.getSpecialization() != null ? trainer.getSpecialization().getTrainingTypeName() : null
+                ))
+                .toList();
+
+        return new TraineeUpdateResponse(
+                trainee.getUsername(),
+                trainee.getFirstName(),
+                trainee.getLastName(),
+                trainee.getDateOfBirth(),
+                trainee.getAddress(),
+                trainee.getIsActive(),
+                trainerSummaries
+        );
+    }
+
+    public static TrainerProfileResponse toProfileResponse(Trainer trainer) {
+        List<TraineeSummaryDto> traineeSummaries = trainer.getTrainees().stream()
+                .map(trainee -> new TraineeSummaryDto(
+                        trainee.getUsername(),
+                        trainee.getFirstName(),
+                        trainee.getLastName()
+                ))
+                .toList();
+
+        return new TrainerProfileResponse(
+                trainer.getFirstName(),
+                trainer.getLastName(),
+                trainer.getSpecialization() != null ? trainer.getSpecialization().getId() : null,
+                trainer.getSpecialization() != null ? trainer.getSpecialization().getTrainingTypeName() : null,
+                trainer.getIsActive(),
+                traineeSummaries
         );
     }
 
