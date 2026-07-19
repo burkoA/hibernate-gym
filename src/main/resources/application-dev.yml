@@ -1,0 +1,77 @@
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/gym_dev?useSSL=false&serverTimezone=UTC
+    username: dev_user
+    password: dev_password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+
+  logging:
+    level:
+      root: INFO
+      epam.arsen.burko.gym: INFO
+      org.springframework.web: INFO
+      org.springframework.security: WARN
+      org.hibernate: WARN
+    pattern:
+      console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file:
+      name: logs/gym-dev.log
+      max-size: 10MB
+      max-history: 10
+
+  jackson:
+    serialization:
+      indent_output: false
+
+app:
+  environment: dev
+  debug-mode: false
+  log-requests: true
+  request-timeout: 30000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,info
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+server:
+  port: 8080
+  compression:
+    enabled: true
+    min-response-size: 1024
+
+logging:
+  level:
+    root: INFO
+    epam.arsen.burko.gym: INFO
+  file:
+    name: logs/gym-dev.log
+

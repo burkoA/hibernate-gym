@@ -185,7 +185,6 @@ class GlobalExceptionHandlerTest {
     private static class Dummy {
         @SuppressWarnings("unused")
         void sample(String value) {
-            // Intentionally empty: reflection target for MethodParameter creation in tests.
         }
     }
 }
