@@ -1,12 +1,15 @@
 package epam.arsen.burko.gym.dto;
 
 import java.time.LocalDate;
+import java.util.List;
 
-public record TraineeUpdateDto(
+public record TraineeProfileResponse(
         String firstName,
         String lastName,
         LocalDate dateOfBirth,
-        String address
+        String address,
+        Boolean isActive,
+        List<TrainerSummaryDto> trainers
 ) {
 }
 

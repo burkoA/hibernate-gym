@@ -1,33 +1,45 @@
 package epam.arsen.burko.gym.service;
 
 import epam.arsen.burko.gym.dto.TrainerDto;
-import epam.arsen.burko.gym.dto.TrainerUpdateDto;
+import epam.arsen.burko.gym.dto.TrainerProfileResponse;
+import epam.arsen.burko.gym.dto.TrainerUpdateRequest;
 import epam.arsen.burko.gym.entity.Trainer;
 import epam.arsen.burko.gym.entity.TrainingType;
+import epam.arsen.burko.gym.entity.User;
 import epam.arsen.burko.gym.exception.SpecializationNotFoundException;
+import epam.arsen.burko.gym.exception.RoleConflictException;
 import epam.arsen.burko.gym.exception.TrainerNotFoundException;
 import epam.arsen.burko.gym.repository.TrainerRepository;
 import epam.arsen.burko.gym.repository.TrainingTypeRepository;
+import epam.arsen.burko.gym.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 import static epam.arsen.burko.gym.dto.GymDtoMapper.toDto;
+import static epam.arsen.burko.gym.dto.GymDtoMapper.toProfileResponse;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class TrainerService {
+    private static final String TRAINER_NOT_FOUND_MESSAGE = "Trainer not found";
+
     private final TrainerRepository trainerRepository;
     private final IdentityGenerationService identityService;
     private final TrainingTypeRepository trainingTypeRepository;
-    private final AuthService auth;
+    private final UserRepository userRepository;
 
 
     @Transactional
     public TrainerDto createTrainer(String firstName, String lastName, Long specializationId) {
         log.info("Creating new trainer profile for: {} {}", firstName, lastName);
+
+        String baseUsername = firstName + "." + lastName;
+        validateNoTraineeExists(baseUsername);
 
         TrainingType specialization = trainingTypeRepository.findById(specializationId)
                 .orElseThrow(() -> new SpecializationNotFoundException("Specialization not found"));
@@ -45,30 +57,27 @@ public class TrainerService {
         return toDto(trainerRepository.save(trainer));
     }
 
-    public TrainerDto get(String username, String password) {
-        log.info("Fetching profile for trainer: {}", username);
-        auth.validate(username, password);
-        return toDto(trainerRepository.findByUsername(username)
-                .orElseThrow(() -> new TrainerNotFoundException("Trainer not found")));
+    private void validateNoTraineeExists(String baseUsername) {
+        List<User> existingUsers = userRepository.findByUsernameStartingWith(baseUsername);
+        boolean traineeExists = existingUsers.stream().anyMatch(epam.arsen.burko.gym.entity.Trainee.class::isInstance);
+        if (traineeExists) {
+            throw new RoleConflictException("Trainee profile already exists for this user");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public TrainerProfileResponse getProfile(String username) {
+        log.info("Fetching public profile for trainer: {}", username);
+        return toProfileResponse(trainerRepository.findByUsername(username)
+                .orElseThrow(() -> new TrainerNotFoundException(TRAINER_NOT_FOUND_MESSAGE)));
     }
 
     @Transactional
-    public void changePassword(String username, String oldPassword, String newPassword) {
-        log.info("Processing password change for trainer: {}", username);
-        auth.validate(username, oldPassword);
-        Trainer trainer = trainerRepository.findByUsername(username)
-                .orElseThrow(() -> new TrainerNotFoundException("Trainer not found"));
-        trainer.setPassword(newPassword);
-        log.info("Successfully changed password for trainer: {}", username);
-    }
-
-    @Transactional
-    public void toggleStatus(String username, String password,boolean isActive) {
+    public void toggleStatus(String username, boolean isActive) {
         log.info("Toggling active status for trainer: {} to {}", username, isActive);
-        auth.validate(username, password);
 
         Trainer trainer = trainerRepository.findByUsername(username)
-                .orElseThrow(() -> new TrainerNotFoundException("Trainer not found"));
+                .orElseThrow(() -> new TrainerNotFoundException(TRAINER_NOT_FOUND_MESSAGE));
         trainer.setIsActive(isActive);
 
         trainerRepository.save(trainer);
@@ -76,23 +85,17 @@ public class TrainerService {
     }
 
     @Transactional
-    public TrainerDto updateProfile(String username, String password, TrainerUpdateDto updated) {
+    public TrainerProfileResponse updateProfile(String username, TrainerUpdateRequest request) {
         log.info("Updating profile for trainer: {}", username);
-        auth.validate(username, password);
 
         Trainer trainer = trainerRepository.findByUsername(username)
-                .orElseThrow(() -> new TrainerNotFoundException("Trainer not found"));
+                .orElseThrow(() -> new TrainerNotFoundException(TRAINER_NOT_FOUND_MESSAGE));
 
-        trainer.setFirstName(updated.firstName());
-        trainer.setLastName(updated.lastName());
-
-        if (updated.specializationId() != null) {
-            TrainingType specialization = trainingTypeRepository.findById(updated.specializationId())
-                    .orElseThrow(() -> new SpecializationNotFoundException("Specialization not found"));
-            trainer.setSpecialization(specialization);
-        }
+        trainer.setFirstName(request.firstName());
+        trainer.setLastName(request.lastName());
+        trainer.setIsActive(request.isActive());
 
         log.info("Successfully updated profile for trainer: {}", username);
-        return toDto(trainer);
+        return toProfileResponse(trainerRepository.save(trainer));
     }
 }

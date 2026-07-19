@@ -45,6 +45,19 @@ class IdentityGenerationServiceTest {
     }
 
     @Test
+    void generateUsername_WithNonNumericSuffix_IgnoresSuffixAndStillIncrements() {
+        User user1 = new User(); user1.setUsername("John.DoeABC");
+        User user2 = new User(); user2.setUsername("John.Doe2");
+
+        when(userRepository.findByUsernameStartingWith("John.Doe"))
+                .thenReturn(List.of(user1, user2));
+
+        String result = identityService.generateUsername("John", "Doe");
+
+        assertEquals("John.Doe3", result);
+    }
+
+    @Test
     void generatePassword_ReturnsTenCharacterRandomString() {
         String password = identityService.generatePassword();
 

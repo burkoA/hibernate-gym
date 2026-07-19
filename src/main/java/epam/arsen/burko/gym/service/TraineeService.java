@@ -1,37 +1,54 @@
 package epam.arsen.burko.gym.service;
 
 import epam.arsen.burko.gym.dto.TraineeDto;
-import epam.arsen.burko.gym.dto.TraineeUpdateDto;
-import epam.arsen.burko.gym.dto.TrainerDto;
+import epam.arsen.burko.gym.dto.TraineeTrainerListUpdateRequest;
+import epam.arsen.burko.gym.dto.TraineeUpdateRequest;
+import epam.arsen.burko.gym.dto.TraineeUpdateResponse;
+import epam.arsen.burko.gym.dto.TraineeProfileResponse;
+import epam.arsen.burko.gym.dto.TrainerSummaryDto;
+import epam.arsen.burko.gym.dto.TrainerUsernameRequest;
 import epam.arsen.burko.gym.entity.Trainee;
 import epam.arsen.burko.gym.entity.Trainer;
+import epam.arsen.burko.gym.entity.User;
 import epam.arsen.burko.gym.exception.TraineeNotFoundException;
+import epam.arsen.burko.gym.exception.RoleConflictException;
+import epam.arsen.burko.gym.exception.TrainerNotFoundException;
 import epam.arsen.burko.gym.repository.TraineeRepository;
 import epam.arsen.burko.gym.repository.TrainerRepository;
+import epam.arsen.burko.gym.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static epam.arsen.burko.gym.dto.GymDtoMapper.toDto;
+import static epam.arsen.burko.gym.dto.GymDtoMapper.toProfileResponse;
+import static epam.arsen.burko.gym.dto.GymDtoMapper.toUpdateResponse;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class TraineeService {
+    private static final String TRAINEE_NOT_FOUND_MESSAGE = "Trainee not found";
+
     private final TraineeRepository traineeRepository;
     private final TrainerRepository trainerRepository;
+    private final UserRepository userRepository;
     private final IdentityGenerationService identityService;
-    private final AuthService auth;
 
     @Transactional
     public TraineeDto createTrainee(String firstName, String lastName, LocalDate dateOfBirth, String address) {
         log.info("Creating new trainee profile for: {} {}", firstName, lastName);
+
+        String baseUsername = firstName + "." + lastName;
+        validateNoTrainerExists(baseUsername);
 
         Trainee trainee = new Trainee();
         trainee.setFirstName(firstName);
@@ -46,56 +63,104 @@ public class TraineeService {
         return toDto(traineeRepository.save(trainee));
     }
 
+    private void validateNoTrainerExists(String baseUsername) {
+        List<User> existingUsers = userRepository.findByUsernameStartingWith(baseUsername);
+        boolean trainerExists = existingUsers.stream().anyMatch(Trainer.class::isInstance);
+        if (trainerExists) {
+            throw new RoleConflictException("Trainer profile already exists for this user");
+        }
+    }
+
+    public TraineeProfileResponse getProfile(String username) {
+        log.info("Fetching public profile for trainee: {}", username);
+        return toProfileResponse(traineeRepository.findByUsername(username)
+                .orElseThrow(() -> new TraineeNotFoundException(TRAINEE_NOT_FOUND_MESSAGE)));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TrainerSummaryDto> getUnassignedActiveTrainers(String username) {
+        log.info("Fetching unassigned active trainers for trainee: {}", username);
+
+        traineeRepository.findByUsername(username)
+                .orElseThrow(() -> new TraineeNotFoundException(TRAINEE_NOT_FOUND_MESSAGE));
+
+        return trainerRepository.findActiveTrainersNotAssignedToTrainee(username).stream()
+                .map(trainer -> new TrainerSummaryDto(
+                        trainer.getUsername(),
+                        trainer.getFirstName(),
+                        trainer.getLastName(),
+                        trainer.getSpecialization() != null ? trainer.getSpecialization().getId() : null,
+                        trainer.getSpecialization() != null ? trainer.getSpecialization().getTrainingTypeName() : null
+                ))
+                .toList();
+    }
+
     @Transactional
-    public void updateTrainers(String username, String password, Set<Long> trainerIds) {
+    public List<TrainerSummaryDto> updateTrainers(String username, TraineeTrainerListUpdateRequest request) {
         log.info("Updating trainer list for trainee: {}", username);
-        auth.validate(username, password);
+
         Trainee trainee = traineeRepository.findByUsername(username)
-                .orElseThrow(() -> new TraineeNotFoundException("Trainee not found"));
-        trainee.setTrainers(new HashSet<>(trainerRepository.findAllById(trainerIds)));
+                .orElseThrow(() -> new TraineeNotFoundException(TRAINEE_NOT_FOUND_MESSAGE));
+
+        List<String> trainerUsernames = request.trainers().stream()
+                .map(TrainerUsernameRequest::username)
+                .toList();
+
+        List<Trainer> trainers = trainerRepository.findByUsernameIn(trainerUsernames);
+        Map<String, Trainer> trainersByUsername = trainers.stream()
+                .collect(Collectors.toMap(Trainer::getUsername, trainer -> trainer, (first, second) -> first, HashMap::new));
+
+        List<String> missingUsernames = trainerUsernames.stream()
+                .filter(requestedUsername -> !trainersByUsername.containsKey(requestedUsername))
+                .distinct()
+                .toList();
+
+        if (!missingUsernames.isEmpty()) {
+            throw new TrainerNotFoundException("Trainers not found: " + String.join(", ", missingUsernames));
+        }
+
+        List<Trainer> orderedTrainers = trainerUsernames.stream()
+                .distinct()
+                .map(trainersByUsername::get)
+                .toList();
+
+        trainee.setTrainers(new HashSet<>(orderedTrainers));
+        traineeRepository.save(trainee);
+
         log.info("Successfully updated trainer list for trainee: {}", username);
-    }
-
-    public TraineeDto get(String username, String password) {
-        log.info("Fetching profile for trainee: {}", username);
-        auth.validate(username, password);
-        return toDto(traineeRepository.findByUsername(username)
-                .orElseThrow(() -> new TraineeNotFoundException("Trainee not found")));
+        return orderedTrainers.stream()
+                .map(trainer -> new TrainerSummaryDto(
+                        trainer.getUsername(),
+                        trainer.getFirstName(),
+                        trainer.getLastName(),
+                        trainer.getSpecialization() != null ? trainer.getSpecialization().getId() : null,
+                        trainer.getSpecialization() != null ? trainer.getSpecialization().getTrainingTypeName() : null
+                ))
+                .toList();
     }
 
     @Transactional
-    public TraineeDto updateProfile(String username, String password, TraineeUpdateDto updated) {
+    public TraineeUpdateResponse updateProfile(String username, TraineeUpdateRequest request) {
         log.info("Updating profile for trainee: {}", username);
-        auth.validate(username, password);
-
         Trainee trainee = traineeRepository.findByUsername(username)
-                .orElseThrow(() -> new TraineeNotFoundException("Trainee not found"));
+                .orElseThrow(() -> new TraineeNotFoundException(TRAINEE_NOT_FOUND_MESSAGE));
 
-        trainee.setFirstName(updated.firstName());
-        trainee.setLastName(updated.lastName());
-        trainee.setDateOfBirth(updated.dateOfBirth());
-        trainee.setAddress(updated.address());
+        trainee.setFirstName(request.firstName());
+        trainee.setLastName(request.lastName());
+        trainee.setDateOfBirth(request.dateOfBirth());
+        trainee.setAddress(request.address());
+        trainee.setIsActive(request.isActive());
+
         log.info("Successfully updated profile for trainee: {}", username);
-        return toDto(trainee);
+        return toUpdateResponse(traineeRepository.save(trainee));
     }
 
     @Transactional
-    public void changePassword(String username, String oldPassword, String newPassword) {
-        log.info("Processing password change for trainee: {}", username);
-        auth.validate(username, oldPassword);
-        Trainee trainee = traineeRepository.findByUsername(username)
-                .orElseThrow(() -> new TraineeNotFoundException("Trainee not found"));
-        trainee.setPassword(newPassword);
-        log.info("Successfully changed password for trainee: {}", username);
-    }
-
-    @Transactional
-    public void toggleStatus(String username, String password, boolean isActive) {
+    public void toggleStatus(String username, boolean isActive) {
         log.info("Toggling active status for trainee: {} to {}", username, isActive);
-        auth.validate(username, password);
 
         Trainee trainee = traineeRepository.findByUsername(username)
-                .orElseThrow(() -> new TraineeNotFoundException("Trainee not found"));
+                .orElseThrow(() -> new TraineeNotFoundException(TRAINEE_NOT_FOUND_MESSAGE));
         trainee.setIsActive(isActive);
 
         traineeRepository.save(trainee);
@@ -103,22 +168,11 @@ public class TraineeService {
     }
 
     @Transactional
-    public void deleteTrainee(String username, String password) {
+    public void deleteTrainee(String username) {
         log.info("Attempting to delete trainee profile: {}", username);
-        auth.validate(username, password);
         Trainee trainee = traineeRepository.findByUsername(username)
-                .orElseThrow(() -> new TraineeNotFoundException("Trainee not found"));
+                .orElseThrow(() -> new TraineeNotFoundException(TRAINEE_NOT_FOUND_MESSAGE));
         traineeRepository.delete(trainee);
         log.info("Successfully deleted trainee profile: {}", username);
-    }
-
-    @Transactional
-    public List<TrainerDto> getUnassigned(String username, String password) {
-        log.info("Fetching unassigned trainers for trainee: {}", username);
-        auth.validate(username, password);
-
-        return trainerRepository.findTrainersNotAssignedToTrainee(username).stream()
-                .map(trainer -> toDto(trainer))
-                .toList();
     }
 }

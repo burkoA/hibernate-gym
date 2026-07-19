@@ -56,4 +56,35 @@ class AuthServiceTest {
                 () -> authService.validate("John.Doe", "wrongPassword"));
         assertEquals("Invalid password", exception.getMessage());
     }
+
+    @Test
+    void changePassword_ValidOldPassword_UpdatesAndSavesUser() {
+        User user = new User();
+        user.setUsername("John.Doe");
+        user.setPassword("oldPass");
+
+        when(userRepository.findByUsername("John.Doe")).thenReturn(Optional.of(user));
+
+        authService.changePassword("John.Doe", "oldPass", "newPass");
+
+        assertEquals("newPass", user.getPassword());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void changePassword_InvalidOldPassword_ThrowsAndDoesNotSave() {
+        User user = new User();
+        user.setUsername("John.Doe");
+        user.setPassword("oldPass");
+
+        when(userRepository.findByUsername("John.Doe")).thenReturn(Optional.of(user));
+
+        InvalidPasswordException exception = assertThrows(
+                InvalidPasswordException.class,
+                () -> authService.changePassword("John.Doe", "wrongPass", "newPass")
+        );
+
+        assertEquals("Invalid password", exception.getMessage());
+        verify(userRepository, never()).save(any(User.class));
+    }
 }
