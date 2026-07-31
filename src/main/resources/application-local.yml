@@ -1,0 +1,62 @@
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:gymdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  logging:
+    level:
+      root: INFO
+      epam.arsen.burko.gym: DEBUG
+      org.springframework.web: DEBUG
+      org.springframework.security: DEBUG
+      org.hibernate: DEBUG
+      org.hibernate.orm.jdbc.bind: TRACE
+    pattern:
+      console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+  jackson:
+    serialization:
+      indent_output: true
+
+app:
+  environment: local
+  debug-mode: true
+  log-requests: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,info,env,configprops,loggers
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+  endpoints:
+    web:
+      base-path: /actuator
+
+server:
+  port: 8080
+  compression:
+    enabled: false
+
+logging:
+  level:
+    root: INFO
+    epam.arsen.burko.gym: DEBUG
+
