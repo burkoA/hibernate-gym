@@ -1,5 +1,6 @@
 import epam.arsen.burko.gym.controller.AuthController;
 import epam.arsen.burko.gym.dto.ChangeLoginRequest;
+import epam.arsen.burko.gym.dto.LoginResponse;
 import epam.arsen.burko.gym.service.AuthService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,7 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
@@ -22,11 +25,17 @@ class AuthControllerTest {
     private AuthController authController;
 
     @Test
-    void login_ValidRequest_ReturnsOk() {
-        ResponseEntity<Void> response = authController.login("john", "pwd");
+    void login_ValidRequest_ReturnsOkWithToken() {
+        LoginResponse loginResponse = new LoginResponse("john", "jwt-token-123");
+        when(authService.authenticate("john", "pwd")).thenReturn(loginResponse);
+
+        ResponseEntity<LoginResponse> response = authController.login("john", "pwd");
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(authService).validate("john", "pwd");
+        assertNotNull(response.getBody());
+        assertEquals("john", response.getBody().username());
+        assertEquals("jwt-token-123", response.getBody().token());
+        verify(authService).authenticate("john", "pwd");
     }
 
     @Test

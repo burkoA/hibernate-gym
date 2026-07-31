@@ -4,6 +4,7 @@ import epam.arsen.burko.gym.entity.User;
 import epam.arsen.burko.gym.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -14,6 +15,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class IdentityGenerationService {
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private final SecureRandom random = new SecureRandom();
@@ -48,5 +50,10 @@ public class IdentityGenerationService {
 
         log.debug("Generated random 10-character password");
         return password.toString();
+    }
+
+    public String encodePassword(String rawPassword) {
+        log.debug("Encoding password with BCrypt");
+        return passwordEncoder.encode(rawPassword);
     }
 }

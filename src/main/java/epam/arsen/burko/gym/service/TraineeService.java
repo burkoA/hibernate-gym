@@ -54,13 +54,25 @@ public class TraineeService {
         trainee.setFirstName(firstName);
         trainee.setLastName(lastName);
         trainee.setUsername(identityService.generateUsername(firstName, lastName));
-        trainee.setPassword(identityService.generatePassword());
+        String plainPassword = identityService.generatePassword();
+        trainee.setPassword(identityService.encodePassword(plainPassword));
         trainee.setIsActive(true);
         trainee.setDateOfBirth(dateOfBirth);
         trainee.setAddress(address);
 
+        Trainee savedTrainee = traineeRepository.save(trainee);
         log.info("Successfully created trainee with username: {}", trainee.getUsername());
-        return toDto(traineeRepository.save(trainee));
+        
+        return new TraineeDto(
+                savedTrainee.getId(),
+                savedTrainee.getFirstName(),
+                savedTrainee.getLastName(),
+                savedTrainee.getUsername(),
+                plainPassword,
+                savedTrainee.getIsActive(),
+                savedTrainee.getDateOfBirth(),
+                savedTrainee.getAddress()
+        );
     }
 
     private void validateNoTrainerExists(String baseUsername) {

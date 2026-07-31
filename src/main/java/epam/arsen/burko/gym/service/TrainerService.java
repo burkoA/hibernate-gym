@@ -48,13 +48,24 @@ public class TrainerService {
         trainer.setFirstName(firstName);
         trainer.setLastName(lastName);
         trainer.setUsername(identityService.generateUsername(firstName, lastName));
-        trainer.setPassword(identityService.generatePassword());
+        String plainPassword = identityService.generatePassword();
+        trainer.setPassword(identityService.encodePassword(plainPassword));
         trainer.setIsActive(true);
         trainer.setSpecialization(specialization);
 
+        Trainer savedTrainer = trainerRepository.save(trainer);
         log.info("Successfully created trainer with username: {}", trainer.getUsername());
 
-        return toDto(trainerRepository.save(trainer));
+        return new TrainerDto(
+                savedTrainer.getId(),
+                savedTrainer.getFirstName(),
+                savedTrainer.getLastName(),
+                savedTrainer.getUsername(),
+                plainPassword,
+                savedTrainer.getIsActive(),
+                specialization.getId(),
+                specialization.getTrainingTypeName()
+        );
     }
 
     private void validateNoTraineeExists(String baseUsername) {

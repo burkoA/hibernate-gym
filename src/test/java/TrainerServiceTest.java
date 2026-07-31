@@ -56,6 +56,7 @@ class TrainerServiceTest {
         when(trainingTypeRepository.findById(1L)).thenReturn(Optional.of(trainingType));
         when(identityService.generateUsername("John", "Doe")).thenReturn("John.Doe");
         when(identityService.generatePassword()).thenReturn("randomPass");
+        when(identityService.encodePassword("randomPass")).thenReturn("hashedRandomPass");
         when(trainerRepository.save(any(Trainer.class))).thenAnswer(i -> i.getArguments()[0]);
 
         TrainerDto result = trainerService.createTrainer("John", "Doe", 1L);
