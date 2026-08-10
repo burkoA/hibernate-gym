@@ -12,6 +12,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
@@ -34,6 +37,9 @@ class AuthServiceTest {
     @Mock
     private JwtTokenProvider jwtTokenProvider;
 
+    @Mock
+    private AuthenticationManager authenticationManager;
+
     @InjectMocks
     private AuthService authService;
 
@@ -45,11 +51,11 @@ class AuthServiceTest {
 
         when(bruteForceProtectionService.isUserLocked("John.Doe")).thenReturn(false);
         when(userRepository.findByUsername("John.Doe")).thenReturn(Optional.of(user));
-        when(passwordEncoder.matches("correctPassword", "hashedPassword")).thenReturn(true);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(mock(org.springframework.security.core.Authentication.class));
 
         assertDoesNotThrow(() -> authService.validate("John.Doe", "correctPassword"));
         verify(userRepository, times(1)).findByUsername("John.Doe");
-        verify(passwordEncoder, times(1)).matches("correctPassword", "hashedPassword");
+        verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
         verify(bruteForceProtectionService, times(1)).recordSuccessfulLogin("John.Doe");
     }
 
@@ -80,7 +86,8 @@ class AuthServiceTest {
 
         when(bruteForceProtectionService.isUserLocked("John.Doe")).thenReturn(false);
         when(userRepository.findByUsername("John.Doe")).thenReturn(Optional.of(user));
-        when(passwordEncoder.matches("wrongPassword", "hashedPassword")).thenReturn(false);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenThrow(new BadCredentialsException("Bad credentials"));
 
         InvalidPasswordException exception = assertThrows(InvalidPasswordException.class,
                 () -> authService.validate("John.Doe", "wrongPassword"));
@@ -96,7 +103,7 @@ class AuthServiceTest {
 
         when(bruteForceProtectionService.isUserLocked("John.Doe")).thenReturn(false);
         when(userRepository.findByUsername("John.Doe")).thenReturn(Optional.of(user));
-        when(passwordEncoder.matches("correctPassword", "hashedPassword")).thenReturn(true);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(mock(org.springframework.security.core.Authentication.class));
         when(jwtTokenProvider.generateToken("John.Doe")).thenReturn("jwt-token-123");
 
         LoginResponse response = authService.authenticate("John.Doe", "correctPassword");
@@ -117,7 +124,8 @@ class AuthServiceTest {
 
         when(bruteForceProtectionService.isUserLocked("John.Doe")).thenReturn(false);
         when(userRepository.findByUsername("John.Doe")).thenReturn(Optional.of(user));
-        when(passwordEncoder.matches("wrongPassword", "hashedPassword")).thenReturn(false);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenThrow(new BadCredentialsException("Bad credentials"));
 
         InvalidPasswordException exception = assertThrows(InvalidPasswordException.class,
                 () -> authService.authenticate("John.Doe", "wrongPassword"));
@@ -134,7 +142,7 @@ class AuthServiceTest {
 
         when(bruteForceProtectionService.isUserLocked("John.Doe")).thenReturn(false);
         when(userRepository.findByUsername("John.Doe")).thenReturn(Optional.of(user));
-        when(passwordEncoder.matches("oldPass", "hashedOldPassword")).thenReturn(true);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(mock(org.springframework.security.core.Authentication.class));
         when(passwordEncoder.encode("newPass")).thenReturn("hashedNewPassword");
 
         authService.changePassword("John.Doe", "oldPass", "newPass");
@@ -151,7 +159,8 @@ class AuthServiceTest {
 
         when(bruteForceProtectionService.isUserLocked("John.Doe")).thenReturn(false);
         when(userRepository.findByUsername("John.Doe")).thenReturn(Optional.of(user));
-        when(passwordEncoder.matches("wrongPass", "hashedOldPassword")).thenReturn(false);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenThrow(new BadCredentialsException("Bad credentials"));
 
         InvalidPasswordException exception = assertThrows(
                 InvalidPasswordException.class,

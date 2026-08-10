@@ -51,6 +51,11 @@ public class JwtTokenProvider {
         return getClaims(token).getSubject();
     }
 
+    public Date getExpirationFromToken(String token) {
+        log.debug("Extracting expiration from JWT token");
+        return getClaims(token).getExpiration();
+    }
+
     public boolean validateToken(String token) {
         try {
             log.debug("Validating JWT token");
