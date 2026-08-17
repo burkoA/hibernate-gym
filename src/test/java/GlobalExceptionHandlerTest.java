@@ -5,6 +5,7 @@ import epam.arsen.burko.gym.exception.RoleConflictException;
 import epam.arsen.burko.gym.exception.SpecializationNotFoundException;
 import epam.arsen.burko.gym.exception.TraineeNotFoundException;
 import epam.arsen.burko.gym.exception.TrainerNotFoundException;
+import epam.arsen.burko.gym.exception.TrainingNotFoundException;
 import epam.arsen.burko.gym.exception.UserNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -108,6 +109,15 @@ class GlobalExceptionHandlerTest {
 
         assertEquals(HttpStatus.NOT_FOUND.value(), problem.getStatus());
         assertEquals("Trainer Not Found", problem.getTitle());
+    }
+
+    @Test
+    void handleTrainingNotFound_ReturnsNotFoundProblem() {
+        ProblemDetail problem = handler.handleTrainingNotFound(new TrainingNotFoundException("Training missing"));
+
+        assertEquals(HttpStatus.NOT_FOUND.value(), problem.getStatus());
+        assertEquals("Training Not Found", problem.getTitle());
+        assertEquals("Training missing", problem.getDetail());
     }
 
     @Test

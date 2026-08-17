@@ -32,5 +32,12 @@ class TrainingControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(trainingService).addTraining(request);
     }
+
+    @Test
+    void deleteTraining_ValidId_DelegatesToService() {
+        trainingController.deleteTraining(42L);
+
+        verify(trainingService).deleteTraining(42L);
+    }
 }
 

@@ -108,5 +108,17 @@ public class TrainerController {
         log.info("Updating active status for trainer: {}", username);
         trainerService.toggleStatus(username, request.isActive());
     }
+
+    @DeleteMapping("/{username}")
+    @ApiOperation(value = "Delete trainer profile")
+    @ApiResponses({
+            @ApiResponse(code = 200, message = "OK"),
+            @ApiResponse(code = 404, message = "Trainer Not Found")
+    })
+    @ResponseStatus(HttpStatus.OK)
+    public void deleteProfile(@PathVariable String username) {
+        log.info("Deleting profile for trainer: {}", username);
+        trainerService.deleteTrainer(username);
+    }
 }
 

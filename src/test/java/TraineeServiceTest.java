@@ -263,10 +263,18 @@ class TraineeServiceTest {
     void deleteTrainee_ExistingTrainee_DeletesTrainee() {
         Trainee trainee = new Trainee();
         trainee.setUsername("Jane.Smith");
+
+        Trainer trainer = new Trainer();
+        trainer.setUsername("John.Doe");
+        trainer.setTrainees(new HashSet<>(List.of(trainee)));
+        trainee.setTrainers(new HashSet<>(List.of(trainer)));
+
         when(traineeRepository.findByUsername("Jane.Smith")).thenReturn(Optional.of(trainee));
 
         traineeService.deleteTrainee("Jane.Smith");
 
+        assertTrue(trainee.getTrainers().isEmpty());
+        assertTrue(trainer.getTrainees().isEmpty());
         verify(traineeRepository, times(1)).delete(trainee);
     }
 

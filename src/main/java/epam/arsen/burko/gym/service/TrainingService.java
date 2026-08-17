@@ -10,6 +10,7 @@ import epam.arsen.burko.gym.entity.Training;
 import epam.arsen.burko.gym.exception.SpecializationNotFoundException;
 import epam.arsen.burko.gym.exception.TraineeNotFoundException;
 import epam.arsen.burko.gym.exception.TrainerNotFoundException;
+import epam.arsen.burko.gym.exception.TrainingNotFoundException;
 import epam.arsen.burko.gym.exception.TrainingTypeNotFoundException;
 import epam.arsen.burko.gym.repository.TraineeRepository;
 import epam.arsen.burko.gym.repository.TrainerRepository;
@@ -29,6 +30,8 @@ import static epam.arsen.burko.gym.dto.GymDtoMapper.toDto;
 @Slf4j
 @RequiredArgsConstructor
 public class TrainingService {
+    private static final String TRAINING_NOT_FOUND_MESSAGE = "Training not found";
+
     private final TrainingRepository trainingRepository;
     private final TraineeRepository traineeRepository;
     private final TrainerRepository trainerRepository;
@@ -155,5 +158,24 @@ public class TrainingService {
                         trainingType.getTrainingTypeName()
                 ))
                 .toList();
+    }
+
+    @Transactional
+    public void deleteTraining(Long id) {
+        log.info("Attempting to delete training with ID: {}", id);
+
+        Training training = trainingRepository.findById(id)
+                .orElseThrow(() -> new TrainingNotFoundException(TRAINING_NOT_FOUND_MESSAGE));
+
+        if (training.getTrainee() != null && training.getTrainee().getTrainings() != null) {
+            training.getTrainee().getTrainings().remove(training);
+        }
+
+        if (training.getTrainer() != null && training.getTrainer().getTrainings() != null) {
+            training.getTrainer().getTrainings().remove(training);
+        }
+
+        trainingRepository.delete(training);
+        log.info("Successfully deleted training with ID: {}", id);
     }
 }

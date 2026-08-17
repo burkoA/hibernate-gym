@@ -90,5 +90,12 @@ class TrainerControllerTest {
 
         verify(trainerService).toggleStatus("John.Doe", false);
     }
+
+    @Test
+    void deleteProfile_ValidUsername_DelegatesToService() {
+        trainerController.deleteProfile("John.Doe");
+
+        verify(trainerService).deleteTrainer("John.Doe");
+    }
 }
 

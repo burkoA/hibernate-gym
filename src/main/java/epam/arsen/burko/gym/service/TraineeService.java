@@ -184,6 +184,12 @@ public class TraineeService {
         log.info("Attempting to delete trainee profile: {}", username);
         Trainee trainee = traineeRepository.findByUsername(username)
                 .orElseThrow(() -> new TraineeNotFoundException(TRAINEE_NOT_FOUND_MESSAGE));
+
+        for (Trainer trainer : new HashSet<>(trainee.getTrainers())) {
+            trainer.getTrainees().remove(trainee);
+        }
+        trainee.getTrainers().clear();
+
         traineeRepository.delete(trainee);
         log.info("Successfully deleted trainee profile: {}", username);
     }
