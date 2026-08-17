@@ -139,6 +139,16 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(UserLockedException.class)
+    public ProblemDetail handleUserLocked(UserLockedException ex) {
+        log.warn("User account locked: {}", ex.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.LOCKED);
+        problem.setTitle("Account Locked");
+        problem.setDetail(ex.getMessage());
+        addTransactionId(problem);
+        return problem;
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGeneral(Exception ex) {
         log.error("Unexpected error", ex);

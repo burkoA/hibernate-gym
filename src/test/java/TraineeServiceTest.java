@@ -59,6 +59,7 @@ class TraineeServiceTest {
         when(userRepository.findByUsernameStartingWith("Jane.Smith")).thenReturn(Collections.emptyList());
         when(identityService.generateUsername("Jane", "Smith")).thenReturn("Jane.Smith");
         when(identityService.generatePassword()).thenReturn("randomPass");
+        when(identityService.encodePassword("randomPass")).thenReturn("hashedRandomPass");
         when(traineeRepository.save(any(Trainee.class))).thenAnswer(i -> i.getArguments()[0]);
 
         TraineeDto result = traineeService.createTrainee("Jane", "Smith", LocalDate.now(), "123 Main St");
