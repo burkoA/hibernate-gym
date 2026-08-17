@@ -4,12 +4,15 @@ import epam.arsen.burko.gym.dto.TrainerDto;
 import epam.arsen.burko.gym.dto.TrainerProfileResponse;
 import epam.arsen.burko.gym.dto.TrainerUpdateRequest;
 import epam.arsen.burko.gym.entity.Trainer;
+import epam.arsen.burko.gym.entity.Trainee;
+import epam.arsen.burko.gym.entity.Training;
 import epam.arsen.burko.gym.entity.TrainingType;
 import epam.arsen.burko.gym.entity.User;
 import epam.arsen.burko.gym.exception.SpecializationNotFoundException;
 import epam.arsen.burko.gym.exception.RoleConflictException;
 import epam.arsen.burko.gym.exception.TrainerNotFoundException;
 import epam.arsen.burko.gym.repository.TrainerRepository;
+import epam.arsen.burko.gym.repository.TrainingRepository;
 import epam.arsen.burko.gym.repository.TrainingTypeRepository;
 import epam.arsen.burko.gym.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,9 +20,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
 
-import static epam.arsen.burko.gym.dto.GymDtoMapper.toDto;
 import static epam.arsen.burko.gym.dto.GymDtoMapper.toProfileResponse;
 
 @Service
@@ -29,6 +32,7 @@ public class TrainerService {
     private static final String TRAINER_NOT_FOUND_MESSAGE = "Trainer not found";
 
     private final TrainerRepository trainerRepository;
+    private final TrainingRepository trainingRepository;
     private final IdentityGenerationService identityService;
     private final TrainingTypeRepository trainingTypeRepository;
     private final UserRepository userRepository;
@@ -108,5 +112,39 @@ public class TrainerService {
 
         log.info("Successfully updated profile for trainer: {}", username);
         return toProfileResponse(trainerRepository.save(trainer));
+    }
+
+    @Transactional
+    public void deleteTrainer(String username) {
+        log.info("Attempting to delete trainer profile: {}", username);
+
+        Trainer trainer = trainerRepository.findByUsername(username)
+                .orElseThrow(() -> new TrainerNotFoundException(TRAINER_NOT_FOUND_MESSAGE));
+
+        List<Training> trainings = trainer.getTrainings() == null
+                ? List.of()
+                : List.copyOf(trainer.getTrainings());
+
+        for (Training training : trainings) {
+            if (training.getTrainee() != null && training.getTrainee().getTrainings() != null) {
+                training.getTrainee().getTrainings().remove(training);
+            }
+        }
+
+        if (!trainings.isEmpty()) {
+            trainingRepository.deleteAll(trainings);
+        }
+
+        if (trainer.getTrainings() != null) {
+            trainer.getTrainings().clear();
+        }
+
+        for (Trainee trainee : new HashSet<>(trainer.getTrainees())) {
+            trainee.getTrainers().remove(trainer);
+        }
+        trainer.getTrainees().clear();
+
+        trainerRepository.delete(trainer);
+        log.info("Successfully deleted trainer profile: {}", username);
     }
 }

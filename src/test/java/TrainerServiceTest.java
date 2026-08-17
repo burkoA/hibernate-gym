@@ -3,11 +3,13 @@ import epam.arsen.burko.gym.dto.TrainerProfileResponse;
 import epam.arsen.burko.gym.dto.TrainerUpdateRequest;
 import epam.arsen.burko.gym.entity.Trainer;
 import epam.arsen.burko.gym.entity.Trainee;
+import epam.arsen.burko.gym.entity.Training;
 import epam.arsen.burko.gym.entity.TrainingType;
 import epam.arsen.burko.gym.exception.RoleConflictException;
 import epam.arsen.burko.gym.exception.SpecializationNotFoundException;
 import epam.arsen.burko.gym.exception.TrainerNotFoundException;
 import epam.arsen.burko.gym.repository.TrainerRepository;
+import epam.arsen.burko.gym.repository.TrainingRepository;
 import epam.arsen.burko.gym.repository.TrainingTypeRepository;
 import epam.arsen.burko.gym.repository.UserRepository;
 import epam.arsen.burko.gym.service.IdentityGenerationService;
@@ -19,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -43,6 +46,8 @@ class TrainerServiceTest {
     private IdentityGenerationService identityService;
     @Mock
     private TrainingTypeRepository trainingTypeRepository;
+    @Mock
+    private TrainingRepository trainingRepository;
 
     @InjectMocks
     private TrainerService trainerService;
@@ -189,5 +194,48 @@ class TrainerServiceTest {
 
         assertEquals("Trainer not found", exception.getMessage());
         verify(trainerRepository, never()).save(any(Trainer.class));
+    }
+
+    @Test
+    void deleteTrainer_ExistingTrainer_DeletesTrainingsAndUnlinksTrainees() {
+        Trainer trainer = new Trainer();
+        trainer.setUsername("John.Doe");
+
+        Trainee trainee = new Trainee();
+        trainee.setUsername("Jane.Smith");
+        trainee.setTrainers(new HashSet<>(List.of(trainer)));
+
+        Training training = new Training();
+        training.setTrainer(trainer);
+        training.setTrainee(trainee);
+
+        trainer.setTrainees(new HashSet<>(List.of(trainee)));
+        trainer.setTrainings(new java.util.ArrayList<>(List.of(training)));
+        trainee.setTrainings(new java.util.ArrayList<>(List.of(training)));
+
+        when(trainerRepository.findByUsername("John.Doe")).thenReturn(Optional.of(trainer));
+
+        trainerService.deleteTrainer("John.Doe");
+
+        assertFalse(trainee.getTrainers().contains(trainer));
+        assertFalse(trainee.getTrainings().contains(training));
+        assertEquals(0, trainer.getTrainees().size());
+        assertEquals(0, trainer.getTrainings().size());
+        verify(trainingRepository).deleteAll(List.of(training));
+        verify(trainerRepository).delete(trainer);
+    }
+
+    @Test
+    void deleteTrainer_MissingTrainer_ThrowsTrainerNotFoundException() {
+        when(trainerRepository.findByUsername("John.Doe")).thenReturn(Optional.empty());
+
+        TrainerNotFoundException exception = assertThrows(
+                TrainerNotFoundException.class,
+                () -> trainerService.deleteTrainer("John.Doe")
+        );
+
+        assertEquals("Trainer not found", exception.getMessage());
+        verify(trainingRepository, never()).deleteAll(any());
+        verify(trainerRepository, never()).delete(any(Trainer.class));
     }
 }

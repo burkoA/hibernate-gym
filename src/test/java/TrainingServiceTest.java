@@ -9,6 +9,7 @@ import epam.arsen.burko.gym.entity.TrainingType;
 import epam.arsen.burko.gym.exception.SpecializationNotFoundException;
 import epam.arsen.burko.gym.exception.TraineeNotFoundException;
 import epam.arsen.burko.gym.exception.TrainerNotFoundException;
+import epam.arsen.burko.gym.exception.TrainingNotFoundException;
 import epam.arsen.burko.gym.exception.TrainingTypeNotFoundException;
 import epam.arsen.burko.gym.repository.TraineeRepository;
 import epam.arsen.burko.gym.repository.TrainerRepository;
@@ -416,6 +417,44 @@ class TrainingServiceTest {
         assertEquals(2L, result.get(1).trainingTypeId());
         assertEquals("Fitness", result.get(1).trainingType());
         verify(trainingTypeRepository, times(1)).findAll();
+    }
+
+    @Test
+    void deleteTraining_ExistingTraining_RemovesReferencesAndDeletesEntity() {
+        Trainee trainee = new Trainee();
+        trainee.setUsername("Jane.Smith");
+
+        Trainer trainer = new Trainer();
+        trainer.setUsername("John.Doe");
+
+        Training training = new Training();
+        training.setId(77L);
+        training.setTrainee(trainee);
+        training.setTrainer(trainer);
+
+        trainee.setTrainings(new java.util.ArrayList<>(List.of(training)));
+        trainer.setTrainings(new java.util.ArrayList<>(List.of(training)));
+
+        when(trainingRepository.findById(77L)).thenReturn(Optional.of(training));
+
+        trainingService.deleteTraining(77L);
+
+        assertEquals(0, trainee.getTrainings().size());
+        assertEquals(0, trainer.getTrainings().size());
+        verify(trainingRepository).delete(training);
+    }
+
+    @Test
+    void deleteTraining_MissingTraining_ThrowsTrainingNotFoundException() {
+        when(trainingRepository.findById(77L)).thenReturn(Optional.empty());
+
+        TrainingNotFoundException exception = assertThrows(
+                TrainingNotFoundException.class,
+                () -> trainingService.deleteTraining(77L)
+        );
+
+        assertEquals("Training not found", exception.getMessage());
+        verify(trainingRepository, never()).delete(any(Training.class));
     }
 }
 

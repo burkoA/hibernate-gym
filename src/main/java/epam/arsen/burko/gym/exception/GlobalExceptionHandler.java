@@ -76,6 +76,16 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(TrainingNotFoundException.class)
+    public ProblemDetail handleTrainingNotFound(TrainingNotFoundException ex) {
+        log.warn("Training not found: {}", ex.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+        problem.setTitle("Training Not Found");
+        problem.setDetail(ex.getMessage());
+        addTransactionId(problem);
+        return problem;
+    }
+
     @ExceptionHandler(SpecializationNotFoundException.class)
     public ProblemDetail handleSpecializationNotFound(SpecializationNotFoundException ex) {
         log.warn("Specialization not found: {}", ex.getMessage());
